@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "458567752591",
+    "project_id": "livraison-8b627",
+    "storage_bucket": "livraison-8b627.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:458567752591:android:8a9e3cb336837c51be09fa",
+        "android_client_info": {
+          "package_name": "com.example.last_livrai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "458567752591-hc2v8mjeancks80s1umaicu9e65h19av.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFslOLVMsBqALBiSGxLAXTu6lq9FDhMlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "458567752591-78bt07budo3j71fetjb0o70dji5eca8q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "458567752591-htdatr6e8ueu2nm8vtflbcvquep6onc0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.lastLivrai.RunnerTests"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
