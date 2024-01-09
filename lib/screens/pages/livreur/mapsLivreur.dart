@@ -3,6 +3,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 
 class MapScreenLivreur extends StatefulWidget {
   @override
@@ -13,12 +16,25 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
   List<Map<String, dynamic>> orders = [];
   LatLng? currentLocation;
   MapController mapController = MapController();
+  Timer? locationUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     fetchOrders();
     fetchCurrentLocation();
+
+    // Start a timer to update the location periodically
+    locationUpdateTimer = Timer.periodic(Duration(seconds: 60), (Timer timer) {
+      fetchCurrentLocation();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancel the timer when the widget is disposed
+    locationUpdateTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchOrders() async {
@@ -47,7 +63,6 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
         );
       });
 
-      // If the current location is available, set the initial center of the map
       if (currentLocation != null) {
         mapController.move(currentLocation!, 12.0);
       }
@@ -151,8 +166,6 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
                       ],
                     ),
                   ),
-
-                  // Button to view on map (only for 'coming' orders)
                   SizedBox(height: 12),
                 ],
               ),
@@ -167,9 +180,7 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
             ),
             TextButton(
               onPressed: () {
-                // Do something with the order data, for example, pass it to a function
-                _handleOrderClose(order);
-                Navigator.of(context).pop(); // Close the dialog
+                _handleOrderClose(context, order);
               },
               child: Text('Take Order'),
             ),
@@ -179,8 +190,68 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
     );
   }
 
-  void _handleOrderClose(Map<String, dynamic> order) {
-    print('Order taken: $order');
+  void _handleOrderClose(BuildContext context, Map<String, dynamic> order) async {
+    CollectionReference ordersCollection = FirebaseFirestore.instance.collection('orders');
+    FirebaseAuth auth = FirebaseAuth.instance;
+
+    try {
+      User? user = auth.currentUser;
+
+      if (user != null) {
+        Position? position = await _getCurrentLocation();
+
+        if (position != null) {
+          Query query = ordersCollection
+              .where('timestamp', isEqualTo: order['timestamp'])
+              .where('user.email', isEqualTo: order['user']['email']);
+
+          query.get().then((querySnapshot) {
+            if (querySnapshot.docs.isNotEmpty) {
+              DocumentSnapshot document = querySnapshot.docs.first;
+              document.reference.update({
+                'type': 'coming',
+                'deliveryUser': {
+                  'email': user.email,
+                'deliveryLocation': '${position.latitude}, ${position.longitude}',
+                  
+                },
+              }).then((value) {
+                print('Order updated successfully in Firebase');
+                fetchOrders();
+                Navigator.of(context).pop();
+              }).catchError((error) {
+                print('Error updating order in Firebase: $error');
+              });
+            } else {
+              print('No matching document found');
+            }
+          }).catchError((error) {
+            print('Error querying orders in Firebase: $error');
+          });
+        } else {
+          print('Location information not available');
+        }
+      } else {
+        print('User not authenticated');
+      }
+    } catch (error) {
+      print('Error getting current user: $error');
+    }
+  }
+
+  Future<Position?> _getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        return null;
+      }
+    }
+
+    return await Geolocator.getCurrentPosition().catchError((error) {
+      print('Error getting current location: $error');
+      return null;
+    });
   }
 
   @override
@@ -192,7 +263,7 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
               currentLocation ?? LatLng(31.662821399290678, -8.022558632311567),
           initialZoom: currentLocation != null
               ? 12.0
-              : 5.0, // Adjust the zoom level as needed
+              : 5.0,
         ),
         mapController: mapController,
         children: [
@@ -216,46 +287,44 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
                 ),
               ],
             ),
-     MarkerLayer(
-  markers: orders
-      .map(
-        (order) => Marker(
-          point: _getLatLngFromLocationString(order['location']),
-          width: 40,
-          height: 40,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
-              image: DecorationImage(
-                image: AssetImage('assets/placeholder.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: ElevatedButton(
-              onPressed: () => _showOrderDetailsDialog(context, order),
-              style: ElevatedButton.styleFrom(
-                primary: Colors.transparent, // Set to transparent
-                padding: EdgeInsets.zero, // Remove padding
-                elevation: 0, // Remove elevation
-              ),
-              child: SizedBox(
-                width: 40,
-                height: 40,
-              ),
-            ),
+          MarkerLayer(
+            markers: orders
+                .map(
+                  (order) => Marker(
+                    point: _getLatLngFromLocationString(order['location']),
+                    width: 40,
+                    height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8.0),
+                        image: DecorationImage(
+                          image: AssetImage('assets/placeholder.png'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => _showOrderDetailsDialog(context, order),
+                        style: ElevatedButton.styleFrom(
+                          primary: Colors.transparent,
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                        ),
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
-        ),
-      )
-      .toList(),
-),
-
         ],
       ),
     );
   }
 
   LatLng _getLatLngFromLocationString(String location) {
-    // Split the location string into latitude and longitude
     List<String> coordinates = location.split(',');
     double latitude = double.parse(coordinates[0]);
     double longitude = double.parse(coordinates[1]);
