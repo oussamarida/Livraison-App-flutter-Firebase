@@ -42,9 +42,11 @@ class Order extends StatelessWidget {
               child: Text('No orders found for user: ${user.email}'),
             );
           }
+
           List<Map<String, dynamic>> ordersData = snapshot.data!.docs
               .map((document) => document.data() as Map<String, dynamic>)
               .toList();
+
           List<Widget> orderCards = ordersData.map((data) {
             List<Map<String, dynamic>> orderItems =
                 (data['orders'] as List<dynamic>)
@@ -61,7 +63,7 @@ class Order extends StatelessWidget {
                 cardColor = Colors.red; // Red for refused orders
                 break;
               case 'coming':
-                cardColor = Colors.blue; // Blue for coming orders (you can choose a different color)
+                cardColor = Colors.blue; // Blue for coming orders
                 break;
               default:
                 cardColor = Colors.grey; // Default to gray for unknown status
@@ -70,7 +72,8 @@ class Order extends StatelessWidget {
             // Calculate the total price for each order
             double total = orderItems.fold(
               0,
-              (previousValue, item) => previousValue + item['price'] * item['quantity'],
+              (previousValue, item) =>
+                  previousValue + item['price'] * item['quantity'],
             );
 
             return Card(
@@ -149,18 +152,18 @@ class Order extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Button to view on map (only for 'coming' orders)
                   if (data['type'] == 'coming')
                     Center(
                       child: Container(
                         child: ElevatedButton(
                           onPressed: () {
-                            // Navigate to the map screen
+                            // Navigate to the map screen with order information
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => MapScreen(),
+                                builder: (context) => MapScreen(orderInfo: data),
                               ),
                             );
                           },

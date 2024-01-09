@@ -25,7 +25,7 @@ class _MapScreenLivreurState extends State<MapScreenLivreur> {
     fetchCurrentLocation();
 
     // Start a timer to update the location periodically
-    locationUpdateTimer = Timer.periodic(Duration(seconds: 60), (Timer timer) {
+    locationUpdateTimer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
       fetchCurrentLocation();
     });
   }
