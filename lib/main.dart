@@ -10,6 +10,8 @@ import 'package:last_livrai/screens/pages/Menu.dart';
 import 'package:last_livrai/screens/pages/Order.dart';
 import 'package:last_livrai/screens/pages/Panie.dart';
 import 'package:last_livrai/screens/pages/Profile.dart';
+import 'package:last_livrai/screens/pages/livreur/home.dart';
+import 'package:last_livrai/screens/pages/livreur/menuLivreu.dart';
 
 
 void main() async {
@@ -38,11 +40,13 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => Auth(),
         '/login': (context) => Login(),
         '/': (context) => Main(),
-        '/home': (context) => Home(),
+        '/home': (context) => Home(user: null),
         '/Order': (context) => Order(),
         '/Menu': (context) => Menu(),
         '/Profile': (context) => Profile(),
         '/Panie': (context) => Panie(),
+        '/HomeLivreur': (context) => HomeLivreur(),
+        '/MenuLivreur': (context) => MenuLivreur(),
       },
     );
   }

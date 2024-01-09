@@ -3,13 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class OrderItem {
   final String name;
   final String image;
   final double price;
-  int quantity; 
+  int quantity;
 
   OrderItem({
     required this.name,
@@ -52,8 +53,6 @@ Future<List<OrderItem>> loadOrdersFromSharedPreferences() async {
   return loadedOrders;
 }
 
-
-
 class Panie extends StatefulWidget {
   @override
   _PanieState createState() => _PanieState();
@@ -61,6 +60,7 @@ class Panie extends StatefulWidget {
 
 class _PanieState extends State<Panie> {
   List<OrderItem> orders = [];
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -75,91 +75,94 @@ class _PanieState extends State<Panie> {
     });
   }
 
+  void removeAllOrders() async {
+    setState(() {
+      orders.clear();
+    });
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.remove("orders");
+  }
 
-
-  void Total(int index) {
+  void removeOrder(int index) async {
     setState(() {
       orders.removeAt(index);
     });
+    await saveOrdersToSharedPreferences(orders);
   }
 
-
-void removeAllOrders() async {
-  setState(() {
-    orders.clear();
-  });
-  SharedPreferences preferences = await SharedPreferences.getInstance();
-  await preferences.remove("orders"); 
-}
-
-void removeOrder(int index) async {
-  setState(() {
-    orders.removeAt(index);
-  });
-  await saveOrdersToSharedPreferences(orders);
-}
-
-Future<void> saveOrdersToSharedPreferences(List<OrderItem> orders) async {
-  final prefs = await SharedPreferences.getInstance();
-  final List<String> ordersStringList =
-      orders.map((order) => jsonEncode(order.toJson())).toList();
-  await prefs.setStringList('orders', ordersStringList);
-}
-
-double calculateTotal() {
-  double total = 0.0;
-  for (var order in orders) {
-    total += order.price * order.quantity;
+  Future<void> saveOrdersToSharedPreferences(List<OrderItem> orders) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> ordersStringList =
+        orders.map((order) => jsonEncode(order.toJson())).toList();
+    await prefs.setStringList('orders', ordersStringList);
   }
-  return total;
-}
 
-
-Future<void> submitAllQuantities() async {
-  // Get the current user
-  User? user = FirebaseAuth.instance.currentUser;
-
-  if (user != null) {
-    CollectionReference ordersCollection =FirebaseFirestore.instance.collection('orders');
-    List<Map<String, dynamic>> ordersData = orders.map((order) {
-      return {
-        'name': order.name,
-        'price': order.price,
-        'quantity': order.quantity,
-        "image": order.image
-      };
-    }).toList();
-
-    Map<String, dynamic> userData = {
-      'displayName': user.displayName,
-      'email': user.email,
-      'photoURL': user.photoURL,
-    };
-
-    if (ordersData.isNotEmpty) {
-      await ordersCollection.add({
-        'user': userData,
-        'orders': ordersData,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      removeAllOrders();
-    
-    } else {
-    
+  double calculateTotal() {
+    double total = 0.0;
+    for (var order in orders) {
+      total += order.price * order.quantity;
     }
-  } else {
-    // Handle the case where the user is not signed in
-    print('User not signed in');
+    return total;
   }
-}
 
+  Future<void> submitAllQuantities() async {
+    setState(() {
+      isLoading = true;
+    });
 
+    // Request location permission
+    var status = await Permission.location.request();
+    if (status.isGranted) {
+      User? user = FirebaseAuth.instance.currentUser;
+      Position position = await Geolocator.getCurrentPosition();
+      String userLocation = '${position.latitude},${position.longitude}';
+
+      if (user != null) {
+        CollectionReference ordersCollection =
+            FirebaseFirestore.instance.collection('orders');
+        List<Map<String, dynamic>> ordersData = orders.map((order) {
+          return {
+            'name': order.name,
+            'price': order.price,
+            'quantity': order.quantity,
+            "image": order.image,
+          };
+        }).toList();
+
+        Map<String, dynamic> userData = {
+          'displayName': user.displayName,
+          'email': user.email,
+          'photoURL': user.photoURL,
+        };
+
+        if (ordersData.isNotEmpty) {
+          await ordersCollection.add({
+            'user': userData,
+            'orders': ordersData,
+            'location': userLocation,
+            "type": "pending",
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+          removeAllOrders();
+        } else {
+          // Handle case where there are no orders
+        }
+      } else {
+        // Handle the case where the user is not signed in
+        print('User not signed in');
+      }
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Background color (white)
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Panie'),
       ),
@@ -191,7 +194,6 @@ Future<void> submitAllQuantities() async {
                           ),
                         ),
                       ),
-                      // Information on the right
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(color: Colors.white),
@@ -201,24 +203,26 @@ Future<void> submitAllQuantities() async {
                             children: [
                               Row(
                                 children: [
-                                  Column(children: [
+                                  Column(
+                                    children: [
                                       Text(
-                                order.name,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(width:20),
-                              Text(
-                                '\$${order.price.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.black,
-                                ),
-                              ),
-                                  ],),
-                                   Positioned(
+                                        order.name,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(width: 20),
+                                      Text(
+                                        '\$${order.price.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Positioned(
                                     top: 10,
                                     right: 10,
                                     child: IconButton(
@@ -252,7 +256,7 @@ Future<void> submitAllQuantities() async {
                                           setState(() {
                                             order.quantity++;
                                           });
-                                              saveOrdersToSharedPreferences(orders);
+                                          saveOrdersToSharedPreferences(orders);
                                         },
                                         child: Text('+'),
                                         style: ElevatedButton.styleFrom(
@@ -296,7 +300,6 @@ Future<void> submitAllQuantities() async {
                                       ),
                                     ],
                                   ),
-                            
                                 ],
                               ),
                             ],
@@ -309,18 +312,15 @@ Future<void> submitAllQuantities() async {
               },
             ),
           ),
-          
           Column(
-            
             children: [
               Text(
-  "Total: \$${calculateTotal().toStringAsFixed(2)}",
-  style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-  ),
-),
-
+                "Total: \$${calculateTotal().toStringAsFixed(2)}",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
@@ -328,22 +328,27 @@ Future<void> submitAllQuantities() async {
                 },
                 child: Text('Cancel All Orders'),
                 style: ElevatedButton.styleFrom(
-                  primary: Colors.red, // Red button
-                  onPrimary: Colors.white, // White text
+                  primary: Colors.red,
+                  onPrimary: Colors.white,
                 ),
               ),
-                SizedBox(width: 8),
+              SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
                   submitAllQuantities();
                 },
-                child: Text('Confirme your orders'),
+                child: Text('Confirm your orders'),
                 style: ElevatedButton.styleFrom(
-                  primary: Colors.blue[700], // Button color (green)
-                  onPrimary: Colors.white, // White text
+                  primary: Colors.blue[700],
+                  onPrimary: Colors.white,
                 ),
               ),
-             
+              // Loading indicator
+              if (isLoading)
+                Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
             ],
           ),
         ],

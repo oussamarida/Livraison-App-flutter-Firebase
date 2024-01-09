@@ -46,6 +46,8 @@ dependencies:
   latlong2: ^0.9.0
   flutter_map_cancellable_tile_provider: ^2.0.0
   url_launcher: ^6.2.2
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.1
 dependency_overrides:
     flutter_map:
         git:
@@ -74,6 +76,10 @@ flutter:
     - assets/facebook_logo.png
     - assets/login.png
     - 'assets/back.jpg'
+    - 'assets/TakeAway.png'
+    - 'assets/marker.png'
+    - 'assets/placeholder.png'
+    - 'assets/mylocation.png'
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

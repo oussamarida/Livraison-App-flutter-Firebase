@@ -42,19 +42,41 @@ class Order extends StatelessWidget {
               child: Text('No orders found for user: ${user.email}'),
             );
           }
-
           List<Map<String, dynamic>> ordersData = snapshot.data!.docs
               .map((document) => document.data() as Map<String, dynamic>)
               .toList();
-
           List<Widget> orderCards = ordersData.map((data) {
             List<Map<String, dynamic>> orderItems =
                 (data['orders'] as List<dynamic>)
                     .cast<Map<String, dynamic>>();
+            Color cardColor;
+            switch (data['type']) {
+              case 'pending':
+                cardColor = Colors.grey; // Gray for pending orders
+                break;
+              case 'delivered':
+                cardColor = Colors.green; // Green for delivered orders
+                break;
+              case 'refused':
+                cardColor = Colors.red; // Red for refused orders
+                break;
+              case 'coming':
+                cardColor = Colors.blue; // Blue for coming orders (you can choose a different color)
+                break;
+              default:
+                cardColor = Colors.grey; // Default to gray for unknown status
+            }
 
-          return Card(
+            // Calculate the total price for each order
+            double total = orderItems.fold(
+              0,
+              (previousValue, item) => previousValue + item['price'] * item['quantity'],
+            );
+
+            return Card(
               elevation: 3,
               margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              color: cardColor, // Set card color based on status
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -113,6 +135,14 @@ class Order extends StatelessWidget {
                           ),
                         SizedBox(height: 12),
                         Text(
+                          'Total: \$${total.toStringAsFixed(2)}', // Display the total for each order
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
                           'Timestamp: ${data['timestamp'].toDate()}',
                           style: TextStyle(fontSize: 14),
                         ),
@@ -120,24 +150,25 @@ class Order extends StatelessWidget {
                     ),
                   ),
                   
-                  // Button to view on map
-                 Center(
-                    child: Container(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Navigate to the map screen
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MapScreen(),
-                            ),
-                          );
-                        },
-                        child: Text('View on Map'),
+                  // Button to view on map (only for 'coming' orders)
+                  if (data['type'] == 'coming')
+                    Center(
+                      child: Container(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // Navigate to the map screen
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MapScreen(),
+                              ),
+                            );
+                          },
+                          child: Text('View on Map'),
+                        ),
                       ),
                     ),
-                  ),
-                SizedBox(height: 12),
+                  SizedBox(height: 12),
                 ],
               ),
             );

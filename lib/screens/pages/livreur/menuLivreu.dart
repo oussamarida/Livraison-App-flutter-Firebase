@@ -1,12 +1,9 @@
-import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:last_livrai/screens/Home.dart';
-import 'package:last_livrai/screens/auth.dart';
 import 'package:last_livrai/screens/login.dart';
 import 'package:last_livrai/screens/signin.dart';
 
-class Profile extends StatelessWidget {
+class MenuLivreur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -19,15 +16,11 @@ class Profile extends StatelessWidget {
                 child: Column(
               children: [
                 Container(
-                  child: Text("Name: ${user.displayName}"),
+                  child: Text("Name: ${user.email}"),
                 ),
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginPage()),
-                    );
                   },
                   child: Text("Logout"),
                 ),

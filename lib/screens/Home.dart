@@ -15,7 +15,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  int _currentIndex = 2; // Index for the selected tab
+  int _currentIndex = 0;
   final List<Widget> _pages = [
     Menu(),
     Panie(),
